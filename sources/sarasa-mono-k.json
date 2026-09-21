@@ -27,9 +27,9 @@
     }
   },
   "transform": {
-    "scale": 0.85,
+    "scale": 0.923,
     "x_offset": 0,
-    "y_offset": -60
+    "y_offset": -30
   },
   "license": {
     "id": "OFL-1.1",

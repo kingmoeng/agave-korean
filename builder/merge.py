@@ -92,7 +92,8 @@ def merge_font(agave_path, donor_path, output, config, weight, license_texts):
             raise ValueError("Agave already contains Korean; refusing to replace existing glyphs")
         glyph_set = donor.getGlyphSet()
         transform = config["transform"]
-        factor = font["head"].unitsPerEm / donor["head"].unitsPerEm * transform["scale"]
+        unit = font["head"].unitsPerEm / donor["head"].unitsPerEm
+        factor_x, factor_y = unit * transform["scale_x"], unit * transform["scale_y"]
         imported = {}
         overhangs = []
         for cp in sorted(KOREAN & donor_cmap.keys()):
@@ -101,13 +102,13 @@ def merge_font(agave_path, donor_path, output, config, weight, license_texts):
                 raise ValueError(f"Glyph name collision: {name}")
             source_glyph = glyph_set[donor_cmap[cp]]
             # Center the donor's advance box, preserving its optical sidebearings.
-            dx = (full_width - source_glyph.width * factor) / 2 + transform["x_offset"]
+            dx = (full_width - source_glyph.width * factor_x) / 2 + transform["x_offset"]
             dy = transform["y_offset"]
             recording = DecomposingRecordingPen(glyph_set, skipMissingComponents=False, reverseFlipped=True)
             source_glyph.draw(recording)
             pen = TTGlyphPen(None)
             quadratic = Cu2QuPen(pen, max_err=0.5, reverse_direction="glyf" not in donor)
-            recording.replay(TransformPen(quadratic, (factor, 0, 0, factor, dx, dy)))
+            recording.replay(TransformPen(quadratic, (factor_x, 0, 0, factor_y, dx, dy)))
             glyph = pen.glyph()
             glyph.recalcBounds(font["glyf"])
             if glyph.numberOfContours:
@@ -159,7 +160,7 @@ def merge_font(agave_path, donor_path, output, config, weight, license_texts):
             "weight": weight, "file": output.name, "ascii_width": cell,
             "korean_width": full_width, "korean_characters": len(imported),
             "agave_glyphs_preserved": len(old_order), "upem": font["head"].unitsPerEm,
-            "outline_factor": factor, "overhang_count": len(overhangs),
+            "outline_factor": [factor_x, factor_y], "overhang_count": len(overhangs),
             "vertical_bounds": [font["head"].yMin, font["head"].yMax],
             "line_metrics": [font["hhea"].ascent, font["hhea"].descent, font["hhea"].lineGap],
             "agave_sha256": sha256(agave_path), "donor_sha256": sha256(donor_path),

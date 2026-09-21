@@ -38,3 +38,16 @@
 - Fixed local fsType mode preservation, per-source config failure isolation, and invalid redistribution metadata during self-review. No unresolved implementation blockers.
 - No code commits (workspace is not a Git repository), external publishing, installed fonts, live executor handoffs or scheduled wake-ups. Existing user edits: none at start.
 - Remaining limitations are intentional: unhinted Korean, modern Hangul/compatibility coverage, no Nerd Font/Italic/old Hangul layout. Browser visual QA unavailable due host capability failure; documented, not claimed as passed.
+
+## Scale tuner (2026-09-21)
+
+- Split `transform` into `scale_x`/`scale_y` (defaulting to uniform `scale`) so horizontal fill can be traded against Korean's vertical growth; added `build --scale/--scale-x/--scale-y/--x-offset/--y-offset` overrides recorded in `build.json`.
+- Added `builder tune`: publishes Korean-only, unhinted donor subsets to `preview/donors/` and writes `preview/tuner.html`, which reproduces `merge_font` in CSS instead of loading a built font. Re-runs reuse unchanged faces (41s cold for all five sources, 0.13s warm).
+- Measured the problem on Sarasa Mono K Regular at scale .85: `M` is inked 64..960 of a 1024 cell, `한` 314..1764 of 2048, so the gap between Korean syllables is 628 units against 128 for Latin. Matching the Latin gap needs about scale_x 1.13, which as a uniform scale would put `한` at yMax ~1825 against Agave's 1536 ascent.
+- Fixed `builder/tune.py` reading presets from the real ROOT instead of the root it was given.
+- 22 Python tests pass, including a new check that the tuner's readout formula predicts the merged glyph bbox within one unit across uniform and split-axis transforms. `node tests/preview_ui.cjs` and the new `node tests/tuner_ui.cjs` pass.
+- Browser verification limitation: headless Chrome crashes in this sandbox (exit 138), so the page's rendering was not screenshot-compared against a built TTF. The geometry is verified numerically only; visual confirmation is still open.
+- Made `tune` serve the page by default (`--no-serve` for files only, `tune.sh` wrapper): loopback-only stdlib server with per-run token, `/apply` writing the preset through `normalize_transform`, `/build` on an explicit click, `/publish` for donors chosen in the picker. Save and build are separate actions; the build button locks while sliders are unsaved.
+- Moved `BUILD_ERRORS` to `sources.py` and injected the build callable into `serve`, so the tuner never imports the CLI module.
+- Applied Sarasa Mono K `scale 0.923 / y_offset -30` (was `0.85 / -60`, a value carried unverified from the first commit across all five presets): Korean side bearings 598 -> 474 units, 4.67x -> 3.70x the Latin gap, no overhang.
+- 26 Python tests plus both DOM checks pass; verified the server end to end over a real socket (save -> preset written -> build -> preview regenerated -> revert -> file byte-identical).

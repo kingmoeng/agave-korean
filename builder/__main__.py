@@ -3,27 +3,26 @@ import json
 import shutil
 import sys
 import tempfile
-import zipfile
 from pathlib import Path
-
-from fontTools.ttLib import TTLibError
-from py7zr.exceptions import Bad7zFile
 
 from .merge import merge_font, validate_font
 from .preview import generate_preview
-from .sources import ROOT, WEIGHTS, license_files, load_source, resolve_file, sha256
-
-BUILD_ERRORS = (ValueError, OSError, KeyError, TTLibError, zipfile.BadZipFile, Bad7zFile)
+from .sources import BUILD_ERRORS, ROOT, TRANSFORM_KEYS, WEIGHTS, apply_overrides, license_files, load_source, resolve_file, sha256
+from .tune import generate_tuner, publish_source, serve
 
 
 def available_sources():
     return [path.stem for path in sorted((ROOT / "sources").glob("*.json")) if path.stem != "agave"]
 
 
-def build_source(source_id, offline=False):
+def build_source(source_id, offline=False, overrides=None):
     if source_id == "agave":
         raise ValueError("agave is the base, not a Korean source")
     config = load_source(source_id)
+    if overrides:
+        # Tuner values build without editing the preset; build.json records what was used.
+        config["transform"] = apply_overrides(config["transform"], overrides)
+        print(f"Transform override: {config['transform']}")
     agave = load_source("agave")
     # Resolve everything before touching the last successful build.
     sources = {weight: resolve_file(config["fonts"][weight], offline=offline) for weight in WEIGHTS}
@@ -84,11 +83,20 @@ def validate_build(source_id, offline=False):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Build normal Agave + Korean; no FontForge required.")
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("build", "validate"):
+    for name in ("build", "validate", "tune"):
         sub = commands.add_parser(name)
         sub.add_argument("sources", nargs="*")
         sub.add_argument("--all", action="store_true", help="all configured Korean sources (missing local files are errors)")
         sub.add_argument("--offline", action="store_true", help="use cached/local files only")
+        if name == "tune":
+            sub.add_argument("--no-serve", action="store_true", help="only write preview/tuner.html; do not open it")
+            sub.add_argument("--port", type=int, default=0, help="fixed port instead of a free one")
+        if name == "build":
+            sub.add_argument("--scale", type=float, help="uniform Korean scale, overriding the preset")
+            sub.add_argument("--scale-x", type=float, help="horizontal Korean scale (defaults to --scale)")
+            sub.add_argument("--scale-y", type=float, help="vertical Korean scale (defaults to --scale)")
+            sub.add_argument("--x-offset", type=float, help="Korean x offset in output font units")
+            sub.add_argument("--y-offset", type=float, help="Korean y offset in output font units")
     commands.add_parser("list")
     commands.add_parser("preview")
     args = parser.parse_args(argv)
@@ -105,13 +113,18 @@ def main(argv=None):
         if args.all and args.sources:
             parser.error("choose source names OR --all")
         selected = available_sources() if args.all else args.sources or ["sarasa-mono-k"]
+        overrides = {key: getattr(args, key) for key in TRANSFORM_KEYS if getattr(args, key, None) is not None}
+        if overrides and len(selected) > 1:
+            parser.error("transform overrides apply to a single source")
         errors = []
         for source_id in selected:
             try:
                 # Validate before resolving any path, but isolate each source's errors.
                 load_source(source_id)
                 if args.command == "build":
-                    build_source(source_id, args.offline)
+                    build_source(source_id, args.offline, overrides)
+                elif args.command == "tune":
+                    publish_source(source_id, ROOT, args.offline)
                 else:
                     validate_build(source_id, args.offline)
             except BUILD_ERRORS as error:
@@ -119,6 +132,11 @@ def main(argv=None):
                 print(f"ERROR [{source_id}]: {error}", file=sys.stderr)
         if args.command == "build":
             generate_preview()
+        if args.command == "tune" and len(errors) < len(selected):
+            generate_tuner(ROOT, args.offline)
+            if not args.no_serve:
+                # The page saves to presets and builds through this process, so it holds the terminal.
+                serve(ROOT, args.offline, lambda source_id: build_source(source_id, args.offline), args.port)
         return 1 if errors else 0
     except BUILD_ERRORS as error:
         print(f"ERROR: {error}", file=sys.stderr)

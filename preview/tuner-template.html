@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agave + Korean · Scale tuner</title>
+<style>
+/* FONT_FACES */
+:root { color-scheme: light dark; --bg: #f5f5f1; --fg: #222b25; --card: #fff; --line-c: #d8dfd9; --accent: #326a47; --warn: #b24b38; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.6 system-ui, sans-serif; }
+header, main, footer { max-width: 1500px; margin: auto; padding: 0 24px; }
+header { padding-top: 24px; }
+footer { padding: 24px; font-size: 12px; opacity: .8; }
+h1 { margin: 0; font-size: 30px; font-weight: 650; letter-spacing: -.8px; }
+h2 { font-size: 13px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--accent); }
+p { margin: 8px 0; }
+.eyebrow { color: var(--accent); font-size: 11px; letter-spacing: 2px; font-weight: 700; }
+select, button, input, textarea { font: inherit; color: inherit; }
+select, button, input[type=number], textarea { padding: 5px 9px; border: 1px solid var(--line-c); border-radius: 5px; background: var(--card); }
+button { cursor: pointer; }
+button.ghost { background: transparent; }
+.panel { background: var(--card); border: 1px solid var(--line-c); border-radius: 8px; padding: 16px 18px; margin-bottom: 16px; }
+.row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+.row label { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+.slider { display: grid; grid-template-columns: 72px 1fr 92px; gap: 10px; align-items: center; margin: 9px 0; }
+.slider input[type=range] { width: 100%; }
+.slider .name { font-size: 12px; font-variant-numeric: tabular-nums; }
+.hidden { display: none !important; }
+
+/* The build is reproduced here, not approximated: the donor renders at scale x font-size,
+   so its outline matches the imported one, and the two-cell box centres its advance the
+   way `dx` does. Negative margins keep an enlarged syllable from growing the line box,
+   because the built font keeps Agave's line metrics whatever the scale is. */
+.specimen { font-family: var(--latin), monospace; font-size: var(--size); line-height: var(--line);
+  font-synthesis: none; font-kerning: none; font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0;
+  white-space: pre; width: max-content; min-width: 100%;
+  background-image:
+    linear-gradient(to right, var(--g-cell) 0 1px, transparent 1px),
+    linear-gradient(to right, var(--g-pair) 0 1px, transparent 1px),
+    linear-gradient(to bottom, var(--g-base) 0 1px, transparent 1px),
+    linear-gradient(to bottom, var(--g-cap) 0 1px, transparent 1px);
+  background-size: var(--cell1) 100%, var(--cell2) 100%, 100% var(--line), 100% var(--line);
+  background-position: 0 0, 0 0, 0 var(--baseline), 0 var(--capline);
+}
+.kr { display: inline-block; width: var(--cell2); text-align: center; overflow: visible;
+  font-family: var(--korean); font-size: calc(var(--sy) * 1em);
+  margin-top: var(--kr-margin); margin-bottom: var(--kr-margin);
+  position: relative; left: var(--dx); top: var(--dy); }
+.nonuniform .kr { transform: scaleX(var(--sxy)); transform-origin: 50% 0; }
+.scroller { overflow-x: auto; padding: 10px 0; }
+.pane + .pane { margin-top: 6px; border-top: 1px dashed var(--line-c); padding-top: 6px; }
+.pane-label { font: 11px system-ui; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); }
+.custom { display: block; width: 100%; min-height: 90px; resize: vertical; margin-top: 8px; }
+table.read { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+table.read th, table.read td { text-align: left; padding: 3px 0; font-size: 12px; border-bottom: 1px solid var(--line-c); }
+table.read td:last-child { text-align: right; font-weight: 600; }
+.verdict { font-size: 12px; margin-top: 10px; }
+.verdict div { padding: 5px 8px; border-radius: 4px; margin-top: 5px; background: #598c7722; }
+.verdict div.bad { background: #b24b3822; color: var(--warn); }
+pre.out { margin: 0; padding: 10px; overflow-x: auto; font-size: 12px; background: var(--bg); border: 1px solid var(--line-c); border-radius: 5px; }
+.status { font-size: 12px; min-height: 20px; }
+.status.error { color: var(--warn); }
+.notice { color: var(--warn); font-size: 12px; }
+.actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.actions button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+.actions button[disabled] { opacity: .45; cursor: default; }
+.saved { font-size: 12px; }
+.saved.dirty { color: var(--warn); }
+pre.log { margin: 10px 0 0; padding: 10px; max-height: 190px; overflow: auto; font-size: 12px; white-space: pre-wrap;
+  background: var(--bg); border: 1px solid var(--line-c); border-radius: 5px; }
+@media (prefers-color-scheme: dark) { :root { --bg: #171d1a; --fg: #e1e8df; --card: #202923; --line-c: #38453d; --accent: #9bc9a9; --warn: #e88b76; } }
+</style>
+<header>
+  <div class="eyebrow">PERSONAL FONT WORKBENCH</div>
+  <h1>Korean scale tuner</h1>
+  <p>빌드 전에 한글 scale을 정합니다. ASCII는 Agave 원본, 한글은 donor 원본이며 병합 결과와 같은 기하를 그립니다.
+     값이 정해지면 아래 <b>적용</b> 블록을 preset에 옮기고 빌드하세요.</p>
+</header>
+<main>
+  <div class="panel row">
+    <label>source <select id="source"></select></label>
+    <label>굵기 <select id="weight"><option value="regular">Regular</option><option value="bold">Bold</option></select></label>
+    <label>크기 <select id="size"></select> px</label>
+    <label>줄높이 <input id="lineheight" type="number" min="1" max="3" step="0.05" value="1.6" style="width:5.5em"></label>
+    <label><input id="g-cell" type="checkbox"> 1칸 격자</label>
+    <label><input id="g-pair" type="checkbox" checked> 2칸 격자</label>
+    <label><input id="g-base" type="checkbox" checked> 기준선</label>
+    <label><input id="g-cap" type="checkbox"> cap height</label>
+    <label><input id="compare" type="checkbox" checked> preset과 비교</label>
+  </div>
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <h2>표본</h2>
+        <div class="row"><span id="samples"></span></div>
+        <textarea class="custom" id="custom"></textarea>
+      </div>
+      <div class="panel">
+        <div class="status" id="status">폰트 로딩 중…</div>
+        <div id="panes"></div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <h2>조절</h2>
+        <div class="slider" data-key="scale"><span class="name">scale</span><input type="range" min="0.6" max="1.3" step="0.002"><input type="number" min="0.05" max="4" step="0.001"></div>
+        <label class="row" style="font-size:12px"><input id="split" type="checkbox"> 가로·세로 축 분리</label>
+        <div id="axes" class="hidden">
+          <div class="slider" data-key="scale_x"><span class="name">scale_x</span><input type="range" min="0.6" max="1.3" step="0.002"><input type="number" min="0.05" max="4" step="0.001"></div>
+          <div class="slider" data-key="scale_y"><span class="name">scale_y</span><input type="range" min="0.6" max="1.3" step="0.002"><input type="number" min="0.05" max="4" step="0.001"></div>
+        </div>
+        <div class="slider" data-key="y_offset"><span class="name">y_offset</span><input type="range" min="-400" max="400" step="2"><input type="number" min="-2000" max="2000" step="1"></div>
+        <div class="slider" data-key="x_offset"><span class="name">x_offset</span><input type="range" min="-200" max="200" step="2"><input type="number" min="-2000" max="2000" step="1"></div>
+        <div class="row" style="margin-top:12px">
+          <button id="fit" class="ghost" title="한글 좌우 여백을 라틴과 같게 만드는 가로 scale">라틴 여백에 맞추기</button>
+          <button id="center" class="ghost" title="한글 세로 중앙을 라틴 cap height 중앙에 맞추는 y_offset">세로 중앙 맞추기</button>
+          <button id="reset" class="ghost">preset 값으로</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>계측 <span style="text-transform:none;letter-spacing:0;opacity:.7">(units / 2048 upem)</span></h2>
+        <table class="read"><tbody id="readout"></tbody></table>
+        <div class="verdict" id="verdict"></div>
+      </div>
+      <div class="panel" id="apply-panel">
+        <h2>적용</h2>
+        <div class="actions">
+          <button id="save" class="primary">저장</button>
+          <button id="build" class="ghost">빌드</button>
+          <button id="revert" class="ghost">되돌리기</button>
+        </div>
+        <div class="saved" id="saved"></div>
+        <pre class="log hidden" id="log"></pre>
+      </div>
+      <div class="panel">
+        <h2>preset에 넣을 값</h2>
+        <pre class="out" id="json"></pre>
+        <pre class="out" id="cli" style="margin-top:8px"></pre>
+        <div class="row" style="margin-top:8px"><button id="copy" class="ghost">JSON 복사</button></div>
+      </div>
+    </div>
+  </div>
+</main>
+<footer>
+  이 페이지는 빌드된 TTF가 아니라 원본 donor를 그립니다. 기하(폭·여백·기준선)는 병합 결과와 같고, 곡선 변환 오차(0.5 unit)와 힌팅만 다릅니다.<br>
+  가로·세로 축을 분리하면 그 비율만 CSS 변형으로 그리므로, 균일 scale일 때보다 렌더링이 약간 무를 수 있습니다. 기하는 그대로입니다.<br>
+  값을 정한 뒤에는 실제 빌드(<code>preview/index.html</code>)로 한 번 더 확인하세요.<br>
+  폰트 로드가 막히면 프로젝트 루트에서 <code>python3 -m http.server 8000 --bind 127.0.0.1</code> 후
+  <code>http://localhost:8000/preview/tuner.html</code>을 여세요.
+</footer>
+<script>
+const data = /* TUNER_DATA */null;
+const SAMPLES = {
+  "코드": `function 안녕하세요(이름) {
+  const 인사 = \`반갑습니다, \${이름}님\`;   // 한글 주석 · latin comment
+  if (이름.length === 0) throw new Error("이름이 비었습니다");
+  return { 결과: true, 횟수: 42, tag: "한글/ASCII" };
+}`,
+  "산문": `Agave는 자간이 촘촘한 monospace 서체입니다.
+한글 글리프는 두 칸을 차지하지만 좌우 여백이 커서
+문장이 실제보다 성기게 보입니다. scale을 올리면
+그 공백이 줄어드는 대신 글자가 세로로도 커집니다.`,
+  "자간": `가나다라마바사아자차카타파하
+가가가가가가 나나나나나나 다다다다다다
+ㄱㄴㄷㄹㅁㅂㅅㅇㅈㅊㅋㅌㅍㅎ ㅏㅑㅓㅕㅗㅛㅜㅠ
+MMMMMMMMMMMM mmmmmmmmmmmm 000000000000`,
+  "받침": `힣 뷁 쀍 똠 짧 없다 앉다 훑다 궤짝
+값 삵 닭 여덟 넋 읽다 밝다 핥다 뚫다
+와 왜 외 워 웨 위 의 예 얘 긔 븨`,
+  "정렬": `| 이름       | 크기 | 비고        |
+|------------|------|-------------|
+| 한글폰트   | 16px | 두 칸 고정  |
+| latin      | 16px | 한 칸       |
+| 혼합mixed  | 16px | 경계 확인   |`,
+};
+const KEYS = ["scale", "scale_x", "scale_y", "x_offset", "y_offset"];
+// Present only when `builder tune` served this page; a copied or rsynced file falls back
+// to the JSON block below, because nothing is there to write the preset.
+const TOKEN = new URLSearchParams(location.search).get("token");
+let lastSaved = null;
+const $ = id => document.getElementById(id);
+const canvas = document.createElement("canvas").getContext("2d");
+const korean = cp => (cp >= 0xAC00 && cp <= 0xD7A3) || (cp >= 0x3131 && cp <= 0x318E);
+const round = (value, digits) => Number(value.toFixed(digits));
+let current = null, samplePick = "코드";
+
+for (const preset of data.presets) {
+  $("source").append(new Option(preset.published ? preset.name : `${preset.name} (미발행)`, preset.id));
+}
+for (const px of [12, 13, 14, 15, 16, 18, 20, 24, 32]) $("size").append(new Option(px, px));
+$("size").value = "16";
+for (const name of Object.keys(SAMPLES)) {
+  const button = document.createElement("button");
+  button.className = "ghost";
+  button.textContent = name;
+  button.addEventListener("click", () => { samplePick = name; $("custom").value = SAMPLES[name]; draw(); });
+  $("samples").append(button);
+}
+$("custom").value = SAMPLES[samplePick];
+
+function source() { return data.sources.find(entry => entry.id === $("source").value); }
+function minimal(transform) {
+  return transform.scale_x === transform.scale_y
+    ? {scale: round(transform.scale_x, 4), x_offset: transform.x_offset, y_offset: transform.y_offset}
+    : {scale_x: round(transform.scale_x, 4), scale_y: round(transform.scale_y, 4),
+       x_offset: transform.x_offset, y_offset: transform.y_offset};
+}
+function dirty() { return KEYS.some(key => current[key] !== source().transform[key]); }
+
+async function post(action, body) {
+  const response = await fetch(action, {method: "POST", headers: {"content-type": "application/json"},
+                                        body: JSON.stringify({token: TOKEN, id: source()?.id, ...body})});
+  const result = await response.json().catch(() => ({error: response.statusText}));
+  if (!response.ok || !result.ok) throw new Error(result.error || "실패");
+  return result;
+}
+
+function note(text, kind) {
+  const log = $("log");
+  log.classList.remove("hidden");
+  log.textContent = text;
+  log.classList.toggle("bad", kind === "bad");
+}
+
+function markSaved() {
+  const changed = dirty();
+  $("saved").classList.toggle("dirty", changed);
+  $("saved").textContent = !TOKEN ? ""
+    : changed ? "저장되지 않은 변경이 있습니다" : `저장됨 · sources/${source().id}.json`;
+  $("revert").disabled = !lastSaved;
+  $("build").disabled = changed;
+}
+
+async function act(button, work) {
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = "…";
+  try {
+    await work();
+  } catch (error) {
+    note(String(error.message), "bad");
+  } finally {
+    button.textContent = label;
+    button.disabled = false;
+    markSaved();
+  }
+}
+function stored(id) { try { return JSON.parse(localStorage.getItem("tuner:" + id) || "null"); } catch { return null; } }
+function store(id, transform) { try { localStorage.setItem("tuner:" + id, JSON.stringify(transform)); } catch {} }
+
+function setTransform(transform) {
+  current = Object.fromEntries(KEYS.map(key => [key, transform[key]]));
+  for (const group of document.querySelectorAll(".slider")) {
+    const value = current[group.dataset.key];
+    for (const input of group.querySelectorAll("input")) input.value = String(value);
+  }
+  $("split").checked = current.scale_x !== current.scale || current.scale_y !== current.scale;
+  $("axes").classList.toggle("hidden", !$("split").checked);
+}
+
+function update(key, value) {
+  if (!Number.isFinite(value)) return;
+  current[key] = value;
+  if (key === "scale") current.scale_x = current.scale_y = value;
+  if (!$("split").checked && (key === "scale_x" || key === "scale_y")) current.scale = value;
+  setTransform(current);
+  store(source().id, current);
+  draw();
+}
+
+for (const group of document.querySelectorAll(".slider")) {
+  for (const input of group.querySelectorAll("input")) {
+    input.addEventListener("input", () => update(group.dataset.key, Number(input.value)));
+  }
+}
+$("split").addEventListener("change", () => {
+  $("axes").classList.toggle("hidden", !$("split").checked);
+  if (!$("split").checked) update("scale", current.scale);
+  else draw();
+});
+$("reset").addEventListener("click", () => { setTransform(source().transform); store(source().id, current); draw(); });
+$("source").addEventListener("change", load);
+$("weight").addEventListener("change", load);
+for (const id of ["size", "lineheight", "compare", "g-cell", "g-pair", "g-base", "g-cap"]) {
+  $(id).addEventListener("input", draw);
+}
+$("custom").addEventListener("input", draw);
+$("copy").addEventListener("click", () => navigator.clipboard?.writeText($("json").textContent));
+$("apply-panel").classList.toggle("hidden", !TOKEN);
+$("save").addEventListener("click", () => act($("save"), async () => {
+  const result = await post("/apply", {transform: minimal(current)});
+  lastSaved = result.previous;
+  source().transform = result.transform;
+  note(`저장: ${JSON.stringify(minimal(result.transform))}`);
+  draw();
+}));
+$("revert").addEventListener("click", () => act($("revert"), async () => {
+  const result = await post("/apply", {transform: lastSaved});
+  lastSaved = null;
+  source().transform = result.transform;
+  setTransform(result.transform);
+  store(source().id, current);
+  note("저장 전 값으로 되돌렸습니다.");
+  draw();
+}));
+$("build").addEventListener("click", () => act($("build"), async () => {
+  note(`빌드 중… ${source().name} Regular + Bold`);
+  const result = await post("/build", {});
+  const lines = result.outputs.map(output =>
+    `${output.weight}: 한글 ${output.korean_characters}자 · 셀 이탈 ${output.overhang_count} · 세로 ${output.vertical_bounds.join(" ~ ")}`);
+  note([`빌드 완료 · ${JSON.stringify(minimal(result.transform))}`, ...lines,
+        "preview/index.html 에서 실제 TTF를 확인하세요."].join("\n"));
+}));
+
+// A zero-size inline-block sits on the baseline, so this reads the browser's own
+// placement instead of guessing from vertical metrics that differ per platform.
+function baselineOffset(host) {
+  const probe = document.createElement("span");
+  probe.style.cssText = "display:inline-block;width:0;height:0;overflow:hidden";
+  const line = document.createElement("div");
+  line.textContent = "M";
+  line.style.cssText = "position:absolute;visibility:hidden;white-space:pre;top:0;left:0";
+  line.append(probe);
+  host.append(line);
+  const offset = probe.getBoundingClientRect().top - line.getBoundingClientRect().top;
+  line.remove();
+  return offset;
+}
+
+function ink(family, character) {
+  canvas.font = `1000px "${family}"`;
+  const metrics = canvas.measureText(character);
+  return {advance: metrics.width / 1000, left: -metrics.actualBoundingBoxLeft / 1000,
+          right: metrics.actualBoundingBoxRight / 1000, top: metrics.actualBoundingBoxAscent / 1000,
+          bottom: -metrics.actualBoundingBoxDescent / 1000};
+}
+
+function geometry(transform) {
+  const agave = data.agave.weights[$("weight").value];
+  const entry = source().weights[$("weight").value];
+  const unit = agave.upem, box = 2 * agave.cell;
+  const kr = ink(entry.name, "한"), latin = ink(agave.name, "M");
+  const dx = (box - kr.advance * unit * transform.scale_x) / 2 + transform.x_offset;
+  const left = dx + kr.left * unit * transform.scale_x;
+  const right = dx + kr.right * unit * transform.scale_x;
+  const top = kr.top * unit * transform.scale_y + transform.y_offset;
+  const bottom = kr.bottom * unit * transform.scale_y + transform.y_offset;
+  const latinGap = agave.cell - (latin.right - latin.left) * unit;
+  return {agave, entry, unit, box, kr, latin, left, right, top, bottom, latinGap,
+          gap: left + (box - right), lineUnits: unit * Number($("lineheight").value)};
+}
+
+function pane(label, transform) {
+  const agave = data.agave.weights[$("weight").value];
+  const entry = source().weights[$("weight").value];
+  const size = Number($("size").value), unit = agave.upem;
+  const wrapper = document.createElement("div");
+  wrapper.className = "pane";
+  wrapper.append(Object.assign(document.createElement("div"), {className: "pane-label", textContent: label}));
+  const scroller = document.createElement("div");
+  scroller.className = "scroller";
+  const host = document.createElement("div");
+  host.className = "specimen";
+  host.style.position = "relative";
+  const style = {
+    "--latin": `"${agave.name}"`, "--korean": `"${entry.name}"`,
+    "--size": `${size}px`, "--line": `${size * Number($("lineheight").value)}px`,
+    "--cell1": `${agave.cell / unit * size}px`, "--cell2": `${2 * agave.cell / unit * size}px`,
+    "--sy": String(transform.scale_y), "--sxy": String(transform.scale_x / transform.scale_y),
+    "--dx": `${transform.x_offset / unit * size}px`, "--dy": `${-transform.y_offset / unit * size}px`,
+    "--kr-margin": `${-2 * size}px`,
+    "--g-cell": $("g-cell").checked ? "#598c7733" : "transparent",
+    "--g-pair": $("g-pair").checked ? "#598c7799" : "transparent",
+    "--g-base": $("g-base").checked ? "#c4795599" : "transparent",
+    "--g-cap": $("g-cap").checked ? "#c4795544" : "transparent",
+  };
+  for (const [key, value] of Object.entries(style)) host.style.setProperty(key, value);
+  host.classList.toggle("nonuniform", transform.scale_x !== transform.scale_y);
+  let buffer = "";
+  const flush = () => { if (buffer) { host.append(document.createTextNode(buffer)); buffer = ""; } };
+  for (const character of $("custom").value) {
+    if (korean(character.codePointAt(0))) {
+      flush();
+      const cell = document.createElement("span");
+      cell.className = "kr";
+      cell.textContent = character;
+      host.append(cell);
+    } else buffer += character;
+  }
+  flush();
+  scroller.append(host);
+  wrapper.append(scroller);
+  return {wrapper, host, size, unit, agave};
+}
+
+function draw() {
+  if (!current) return;
+  $("panes").textContent = "";
+  const panes = [];
+  if ($("compare").checked) {
+    const preset = source().transform;
+    panes.push(pane(`A · preset  scale ${preset.scale_x}×${preset.scale_y}  y ${preset.y_offset}`, preset));
+  }
+  panes.push(pane(`B · 후보  scale ${round(current.scale_x, 3)}×${round(current.scale_y, 3)}  y ${current.y_offset}`, current));
+  for (const item of panes) {
+    $("panes").append(item.wrapper);
+    const baseline = baselineOffset(item.host);
+    item.host.style.setProperty("--baseline", `${baseline}px`);
+    item.host.style.setProperty("--capline", `${baseline - item.agave.cap_height / item.unit * item.size}px`);
+  }
+  report();
+  if (TOKEN) markSaved();
+}
+
+function report() {
+  const g = geometry(current);
+  const size = Number($("size").value), px = value => (value / g.unit * size).toFixed(2);
+  const rows = [
+    ["한글 좌우 여백 (합)", `${Math.round(g.gap)} · ${px(g.gap)}px`],
+    ["라틴 좌우 여백 (합)", `${Math.round(g.latinGap)} · ${px(g.latinGap)}px`],
+    ["여백 비 (한글÷라틴)", `${(g.gap / g.latinGap).toFixed(2)}×`],
+    ["한글 ink 폭 / 두 칸", `${((g.right - g.left) / g.box * 100).toFixed(1)}%`],
+    ["한글 ink 높이", `${Math.round(g.top - g.bottom)} · ${px(g.top - g.bottom)}px`],
+    ["한글 상단 / cap height", `${Math.round(g.top)} / ${g.agave.cap_height}`],
+    ["hhea ascent / descent", `${g.agave.ascent} / ${g.agave.descent}`],
+    ["셀 범위 (0 – " + g.box + ")", `${Math.round(g.left)} – ${Math.round(g.right)}`],
+  ];
+  $("readout").textContent = "";
+  for (const [name, value] of rows) {
+    const tr = document.createElement("tr");
+    tr.append(Object.assign(document.createElement("th"), {textContent: name}));
+    tr.append(Object.assign(document.createElement("td"), {textContent: value}));
+    $("readout").append(tr);
+  }
+  const notes = [];
+  if (g.left < 0 || g.right > g.box) notes.push(["bad", "한글이 두 칸 밖으로 나갑니다 — 빌드가 overhang 경고를 냅니다."]);
+  if (g.top > g.agave.ascent) notes.push(["bad", `한글 위쪽이 hhea ascent를 ${Math.round(g.top - g.agave.ascent)} units 넘습니다.`]);
+  if (g.bottom < g.agave.descent) notes.push(["bad", `한글 아래쪽이 hhea descent를 ${Math.round(g.agave.descent - g.bottom)} units 넘습니다.`]);
+  if (g.top - g.bottom > g.lineUnits) notes.push(["bad", `줄높이 ${$("lineheight").value}에서 위아래 줄이 겹칩니다.`]);
+  if (!notes.length) notes.push(["ok", "두 칸 안에 들어가고 Agave 세로 범위도 넘지 않습니다."]);
+  $("verdict").textContent = "";
+  for (const [kind, text] of notes) {
+    const div = document.createElement("div");
+    if (kind === "bad") div.className = "bad";
+    div.textContent = text;
+    $("verdict").append(div);
+  }
+  const uniform = current.scale_x === current.scale_y;
+  const transform = uniform
+    ? {scale: round(current.scale_x, 4), x_offset: current.x_offset, y_offset: current.y_offset}
+    : {scale_x: round(current.scale_x, 4), scale_y: round(current.scale_y, 4), x_offset: current.x_offset, y_offset: current.y_offset};
+  $("json").textContent = `"transform": ${JSON.stringify(transform, null, 2)}`;
+  const flags = uniform ? `--scale ${round(current.scale_x, 4)}` : `--scale-x ${round(current.scale_x, 4)} --scale-y ${round(current.scale_y, 4)}`;
+  $("cli").textContent = `uv run --frozen python -m builder build ${source().id} \\\n  ${flags} --x-offset ${current.x_offset} --y-offset ${current.y_offset}`;
+}
+
+$("fit").addEventListener("click", () => {
+  const g = geometry(current);
+  update("scale_x", round((g.box - g.latinGap) / ((g.kr.right - g.kr.left) * g.unit), 4));
+});
+$("center").addEventListener("click", () => {
+  const g = geometry(current);
+  // Put the Korean body's optical centre on the Latin cap-height centre.
+  const height = g.top - g.bottom;
+  update("y_offset", Math.round(current.y_offset + (g.agave.cap_height / 2) - (g.bottom + height / 2)));
+});
+
+async function load() {
+  if (!source()) {
+    // Publishing subsets 11k outlines, so it happens on request rather than for every preset.
+    const id = $("source").value;
+    $("status").classList.remove("error");
+    $("status").textContent = TOKEN ? `${id} donor를 발행하는 중… (처음 한 번만 걸립니다)`
+      : `${id}는 아직 발행되지 않았습니다. builder tune ${id} 를 실행하세요.`;
+    if (!TOKEN) return;
+    try {
+      await post("/publish", {id});
+      location.reload();
+    } catch (error) {
+      $("status").classList.add("error");
+      $("status").textContent = `발행 실패: ${error.message}`;
+    }
+    return;
+  }
+  const entry = source();
+  setTransform(stored(entry.id) || entry.transform);
+  $("status").classList.remove("error");
+  $("status").textContent = "폰트 로딩 중…";
+  const faces = [data.agave.weights[$("weight").value], entry.weights[$("weight").value]];
+  Promise.all(faces.map((face, index) => document.fonts.load(`16px "${face.name}"`, index ? "한글" : "Mg")))
+    .then(results => {
+      if (results.some(list => !list.length)) throw new Error("FontFace unavailable");
+      $("status").textContent = `로드 완료 · Agave 원본 + ${entry.name} 원본${entry.redistribute ? "" : " · 로컬 실험 전용, 배포 금지"}`;
+      if (!entry.redistribute) $("status").classList.add("error");
+      draw();
+    })
+    .catch(() => {
+      $("status").classList.add("error");
+      $("status").textContent = "폰트 로드 실패 — 아래 로컬 서버 안내를 확인하세요. 지금 보이는 글자는 비교에 쓸 수 없습니다.";
+      draw();
+    });
+}
+
+$("source").value = data.sources.length ? data.sources[0].id : data.presets[0]?.id;
+load();
+</script>

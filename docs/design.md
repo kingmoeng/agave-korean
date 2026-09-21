@@ -58,15 +58,42 @@ Agave glyph를 다시 compile하면서 좌표나 bytecode가 바뀌지 않게 `r
 ## 한글 outline과 폭
 
 ```text
-s = Agave_UPM / donor_UPM * config.scale
-dx = (2 * Agave_ASCII_advance - donor_glyph_advance * s) / 2 + x_offset
-x' = s * x + dx
-y' = s * y + y_offset
+sx = Agave_UPM / donor_UPM * config.scale_x
+sy = Agave_UPM / donor_UPM * config.scale_y
+dx = (2 * Agave_ASCII_advance - donor_glyph_advance * sx) / 2 + x_offset
+x' = sx * x + dx
+y' = sy * y + y_offset
 advance = 2 * Agave_ASCII_advance
 ```
 
+`scale_x`, `scale_y`는 생략하면 균일한 `scale`을 따른다. 축을 나눌 수 있게 둔 이유는 문제가 가로에만 있기 때문이다.
+한글은 두 칸을 쓰지만 ink가 좁아 좌우 여백이 라틴보다 훨씬 크고, 그래서 자간이 넓어 보인다.
+두 축을 함께 키워 그 여백을 없애면 한글 ink 높이가 Agave의 cap height와 hhea ascent를 넘어선다.
+어느 쪽을 택할지는 눈으로 정할 문제이므로 빌더는 두 축을 모두 표현할 수 있게만 한다.
+
 비등폭 source도 각 glyph의 advance box를 중앙 정렬한다. bbox 중심으로 글자마다 이동하면 원본 optical spacing이 깨지므로 사용하지 않는다.
 큰 transform이 셀 밖으로 나가면 경고하고, TrueType 좌표 범위를 넘으면 실패한다.
+
+## Scale tuner
+
+빌드는 한 source당 11k개 outline을 다시 쓰므로 scale을 눈으로 고르기에는 느리다.
+`builder tune`은 대신 brower에서 병합을 재현한다. 빌드된 TTF가 아니라 Agave 원본과 donor 원본을 싣고,
+CSS로 같은 기하를 만든다. donor를 `scale × font-size`로 렌더하면 outline이 `sx = sy = scale`일 때
+가져올 glyph와 정확히 일치한다(donor UPM이 약분된다). 두 칸짜리 inline-block과 `text-align: center`가
+`dx`와 같은 중앙 정렬을 하고, `top`이 `y_offset`을 옮긴다. 축을 나눈 경우에만 그 비율을 `scaleX()`로 그린다.
+
+래스터된 글자를 변형하지 않으므로 12–16px에서 흐려지지 않는다. 한글 cell에 큰 음수 세로 margin을 주어
+글자를 키워도 line box가 자라지 않게 한다. 빌드 결과도 Agave의 hhea를 유지하므로 줄 간격은 scale과 무관하다.
+
+`tune`은 페이지를 만든 뒤 stdlib `http.server`로 127.0.0.1에만 바인딩해 띄운다.
+페이지는 `/apply`(preset 기록), `/build`(빌드), `/publish`(donor 발행) 세 가지만 POST할 수 있고,
+각 요청은 이번 실행의 1회용 토큰과 loopback Host를 증명해야 한다. 값은 `normalize_transform`으로
+검증한 뒤에야 파일에 닿고, preset의 나머지 필드는 건드리지 않는다. 토큰이 없는 정적 페이지는
+저장 UI 없이 JSON 출력만 제공하므로 복사본으로도 값을 뽑을 수 있다.
+
+donor는 한글만 남겨 subset하고 hinting과 layout feature를 버린 뒤 `preview/donors/`에 발행한다.
+빌드가 outline만 가져오고 layout 규칙을 가져오지 않는 것과 같은 상태다. 발행본은 배포하지 않으며 Git에서 제외한다.
+readout이 쓰는 계산식은 unit test에서 실제 병합 결과의 glyph bbox와 대조한다.
 
 한글 composite는 [DecomposingRecordingPen](https://fonttools.readthedocs.io/en/latest/pens/recordingPen.html)으로 재귀적으로 풀어 glyph-ID/component/hint 참조 충돌을 제거한다.
 CFF는 [Cu2QuPen](https://fonttools.readthedocs.io/en/latest/pens/cu2quPen.html)으로 quadratic으로 근사하고 TrueType winding으로 바꾼다.

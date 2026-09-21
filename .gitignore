@@ -6,3 +6,5 @@ build/
 preview/index.html
 fonts/local/*/
 .DS_Store
+preview/tuner.html
+preview/donors/

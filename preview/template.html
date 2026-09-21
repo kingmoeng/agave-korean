@@ -98,7 +98,10 @@ for (const source of sources) {
   article.dataset.source = source.id;
   article.append(element('h2', '', `Agave + ${source.name}`));
   const t = source.transform;
-  article.append(element('div', 'meta', `scale ${t.scale} · x ${t.x_offset} · y ${t.y_offset} · ${source.family}`));
+  // Manifests written before split axes carry only `scale`.
+  const [sx, sy] = [t.scale_x ?? t.scale, t.scale_y ?? t.scale];
+  const scale = sx === sy ? `scale ${sx}` : `scale ${sx}×${sy}`;
+  article.append(element('div', 'meta', `${scale} · x ${t.x_offset} · y ${t.y_offset} · ${source.family}`));
   if (!source.redistribute) article.append(element('p', 'status error', '개인 로컬 실험 · 라이선스 미확인 · 이 폰트와 preview를 배포하지 마세요.'));
   for (const [weight, numeric] of [['regular',400],['bold',700]]) {
     const section = element('section');

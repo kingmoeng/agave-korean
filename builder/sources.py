@@ -11,9 +11,15 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 import py7zr
+from fontTools.ttLib import TTLibError
+from py7zr.exceptions import Bad7zFile
 
+# Everything a bad preset, download, archive or font file can raise. Callers report these
+# against one source and keep going; anything else is a bug and should surface as a crash.
+BUILD_ERRORS = (ValueError, OSError, KeyError, TTLibError, zipfile.BadZipFile, Bad7zFile)
 ROOT = Path(__file__).resolve().parent.parent
 WEIGHTS = ("regular", "bold")
+TRANSFORM_KEYS = ("scale", "scale_x", "scale_y", "x_offset", "y_offset")
 
 
 def sha256(path):
@@ -26,6 +32,41 @@ def relative_path(root, value):
     if not path.is_relative_to(root.resolve()):
         raise ValueError(f"Path must stay inside {root}: {value}")
     return path
+
+
+def normalize_transform(transform):
+    """Uniform `scale` is the baseline; `scale_x`/`scale_y` override a single axis.
+
+    Korean needs more horizontal fill than vertical: growing both axes to close the
+    gap between syllables also pushes Korean past the Agave ascender. Keeping the
+    axes separate lets a preset trade one against the other.
+    """
+    if set(transform) - set(TRANSFORM_KEYS):
+        raise ValueError("Unknown transform option")
+    result = {}
+    for key, default in (("scale", 1.0), ("x_offset", 0), ("y_offset", 0)):
+        result[key] = finite(transform, key, default)
+    for key in ("scale", "scale_x", "scale_y"):
+        result[key] = finite(transform, key, result["scale"])
+        if result[key] <= 0:
+            raise ValueError(f"transform.{key} must be positive")
+    return result
+
+
+def apply_overrides(transform, overrides):
+    """CLI overrides replace preset values; a uniform `scale` resets both axes with it."""
+    result = dict(transform)
+    if "scale" in overrides:
+        result.update(scale=overrides["scale"], scale_x=overrides["scale"], scale_y=overrides["scale"])
+    result.update({key: value for key, value in overrides.items() if key != "scale"})
+    return normalize_transform(result)
+
+
+def finite(transform, key, default):
+    value = transform.get(key, default)
+    if isinstance(value, bool) or not isinstance(value, (float, int)) or not math.isfinite(value):
+        raise ValueError(f"transform.{key} must be finite")
+    return value
 
 
 def load_source(source_id, root=ROOT):
@@ -41,17 +82,7 @@ def load_source(source_id, root=ROOT):
         raise ValueError(f"{path}: exactly regular and bold are required")
     if not re.fullmatch(r"[A-Za-z0-9 ]{1,45}", config["family"]) or not config["family"].strip():
         raise ValueError("family must be 1–45 ASCII letters, numbers or spaces")
-    transform = config.get("transform", {})
-    if set(transform) - {"scale", "x_offset", "y_offset"}:
-        raise ValueError("Unknown transform option")
-    for key, default in (("scale", 1.0), ("x_offset", 0), ("y_offset", 0)):
-        value = transform.get(key, default)
-        if isinstance(value, bool) or not isinstance(value, (float, int)) or not math.isfinite(value):
-            raise ValueError(f"transform.{key} must be finite")
-        if key == "scale" and value <= 0:
-            raise ValueError("transform.scale must be positive")
-        transform[key] = value
-    config["transform"] = transform
+    config["transform"] = normalize_transform(config.get("transform", {}))
     license_info = config["license"]
     if not isinstance(license_info.get("redistribute", False), bool):
         raise ValueError("license.redistribute must be true or false")

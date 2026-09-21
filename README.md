@@ -12,6 +12,7 @@ Python 3.11 이상과 [uv](https://docs.astral.sh/uv/)를 권장합니다. 런�
 
 ```sh
 uv sync --frozen
+./tune.sh                          # 한글 크기를 눈으로 정하고 preset에 저장
 ./build.sh                         # Sarasa Mono K Regular + Bold
 ./build.sh pretendard
 ./build.sh sarasa-mono-k noto-sans-kr
@@ -25,6 +26,7 @@ uv run --frozen python -m builder list
 uv run --frozen python -m builder build   # 기본값 Sarasa
 uv run --frozen python -m builder validate --all --offline
 uv run --frozen python -m builder preview
+uv run --frozen python -m builder tune --all --offline
 ```
 
 uv 없이 실행하려면:
@@ -52,6 +54,10 @@ build/<id>/              검증을 통과한 결과 (Git 제외)
   build.json             config, 원본/결과 해시, metrics, 검증 결과
 preview/template.html    비교 UI 소스
 preview/index.html       빌드마다 갱신되는 결과 (Git 제외)
+preview/tuner-template.html  scale 조절 UI 소스
+preview/tuner.html       tune마다 갱신되는 결과 (Git 제외)
+tune.sh                  튜너 실행 (build.sh와 같은 형태)
+preview/donors/          한글만 남긴 donor subset과 manifest (Git 제외)
 ```
 
 TTF 두 개를 임시 디렉터리에서 모두 생성·검증한 다음 결과 경로에 반영합니다.
@@ -91,9 +97,55 @@ python3 -m http.server 8000 --bind 127.0.0.1
 이는 개발용 선택지이며 외부 웹서버 설치는 필요 없습니다. 로딩 실패 상태에서는 시스템 fallback이므로 비교하지 마세요.
 TTF 해시가 URL에 붙어 재빌드 후 캐시를 구분합니다. 재빌드 후 페이지를 새로고침하세요.
 
+## Scale tuner
+
+한글 scale은 빌드하기 전에 **튜너에서 눈으로 정합니다.**
+
+```sh
+./tune.sh                  # Sarasa
+./tune.sh noto-sans-kr
+./tune.sh --all
+```
+
+donor를 발행하고, 페이지를 만들고, 로컬 서버를 띄워 **브라우저를 엽니다.** `Ctrl+C`로 종료합니다.
+슬라이더로 값을 맞춘 뒤 페이지에서 바로 처리합니다.
+
+| 버튼 | 동작 |
+|---|---|
+| 저장 | `sources/<id>.json`의 `transform`을 갱신합니다. A(preset) 패널이 새 값으로 갱신됩니다 |
+| 빌드 | 저장된 값으로 실제 빌드합니다. 셀 이탈·세로 범위 요약이 페이지에 표시됩니다 |
+| 되돌리기 | 마지막 저장 직전 값으로 되돌립니다 |
+
+저장하지 않은 변경이 있으면 빌드 버튼이 잠깁니다. source 목록에서 아직 발행하지 않은 폰트를 고르면
+그 자리에서 발행합니다. 서버는 127.0.0.1에만 바인딩하며, 페이지 URL의 1회용 토큰이 있는 요청만 처리합니다.
+
+파일만 만들려면 `--no-serve`를 쓰고 직접 여세요. 이때는 저장 버튼 없이 JSON 블록만 제공되므로,
+다른 기기로 복사한 페이지에서도 값만 뽑아 쓸 수 있습니다.
+
+```sh
+./tune.sh --all --no-serve
+python3 -m http.server 8000 --bind 127.0.0.1
+# http://localhost:8000/preview/tuner.html
+```
+
+이 페이지는 빌드된 TTF를 쓰지 않습니다. ASCII는 Agave 원본이, 한글은 donor 원본이 그리고,
+CSS가 병합 결과와 **같은 기하**를 만듭니다. 한글 한 글자는 두 칸짜리 상자이고 donor는
+`scale × font-size`로 렌더되므로 outline이 가져올 glyph와 일치하며, advance box는 빌드의 `dx`와
+같은 방식으로 중앙 정렬됩니다. 래스터된 글자를 확대하는 게 아니라 다른 크기로 다시 그리므로
+판단이 필요한 12–16px에서도 선명합니다.
+
+- scale / scale_x / scale_y / y_offset / x_offset 슬라이더, 현재 preset과 A·B 비교
+- 코드·산문·자간·받침·정렬 표본과 직접 입력, 1칸·2칸 격자, 기준선, cap height 선
+- 한글 좌우 여백과 라틴 좌우 여백의 실측 비, 셀 이탈·ascent 초과·줄 겹침 경고
+- **라틴 여백에 맞추기** 버튼이 라틴과 같은 여백을 만드는 가로 scale을 계산합니다
+- 정해진 값은 저장 버튼으로 preset에 바로 반영됩니다. JSON과 빌드 명령도 함께 출력됩니다
+
+`preview/donors/`에는 한글만 남긴 donor subset이 발행됩니다. Git에서 제외되며, 같은 원본이면
+다시 만들지 않습니다.
+
 ## 한글 크기와 위치 조절
 
-`sources/sarasa-mono-k.json` 등의 값을 편집합니다.
+튜너의 저장 버튼이 `sources/<id>.json`에 쓰는 값입니다. 직접 편집해도 됩니다.
 
 ```json
 "transform": {
@@ -104,14 +156,26 @@ TTF 해시가 URL에 붙어 재빌드 후 캐시를 구분합니다. 재빌드 �
 ```
 
 - `scale`: source UPM → Agave UPM 변환 뒤 적용하는 **균일한 x/y 배율**입니다. `1.0`은 원본의 em 비율을 유지합니다.
+- `scale_x`, `scale_y`: 한 축만 다르게 할 때 씁니다. 생략하면 `scale`을 따릅니다.
 - `x_offset`, `y_offset`: **Agave font units**입니다. 현재 UPM은 2048이며 x 양수는 오른쪽, y 양수는 위쪽입니다.
 - source의 advance box를 새 2-cell 안에 중앙 정렬하고 offset을 적용합니다. 원본의 좌우 sidebearing 비대칭은 유지됩니다.
-- advance는 scale/offset에 관계없이 항상 2048입니다. 축별로 다른 배율을 써서 글자를 찌그러뜨리지 않습니다.
-- 기본 `.85, 0, -60`은 Agave 높이와 줄 간격에 맞춘 출발점입니다. source마다 원하는 크기·굵기 느낌을 preview로 확인하세요.
+- advance는 scale/offset에 관계없이 항상 2048입니다.
+- 기본 `.85, 0, -60`은 Agave 높이와 줄 간격에 맞춘 출발점입니다. source마다 원하는 크기·굵기 느낌을 튜너와 preview로 확인하세요.
+
+preset을 고치지 않고 한 번만 시험하려면 빌드에 직접 넘길 수 있습니다.
 
 ```sh
 ./build.sh sarasa-mono-k --offline
+uv run --frozen python -m builder build sarasa-mono-k --scale 1.12 --y-offset -120
+uv run --frozen python -m builder build sarasa-mono-k --scale-x 1.12 --scale-y 0.9
 ```
+
+`--scale`은 두 축을 함께 바꾸고, `--scale-x`/`--scale-y`가 그중 한 축을 덮어씁니다.
+override한 값은 `build.json`에 그대로 기록됩니다.
+
+한글은 두 칸을 차지하지만 좌우 여백이 커서 라틴보다 자간이 넓어 보입니다. 가로 scale을 올리면
+그 여백이 줄지만, 균일하게 올리면 한글이 세로로도 커져 Agave의 ascent를 넘습니다. 튜너의 경고와
+계측이 그 지점을 알려줍니다.
 
 셀 밖으로 나가는 outline은 빌드 시 경고합니다. 크게 확대하면 글자나 줄 사이가 겹칠 수 있습니다.
 Agave의 hhea/typo 줄 간격은 유지하고, Windows clipping bounds만 전체 outline을 수용하도록 늘립니다.
@@ -177,6 +241,8 @@ uv run --frozen python -m builder validate --all --offline
 ```
 
 unit test는 작은 합성 폰트로 transform, composite, hinting, 오류·캐시·local 경로를 검사합니다.
+튜너가 readout에 쓰는 계산식이 실제 병합 결과와 같은 좌표를 내는지도 같은 합성 폰트로 대조합니다.
+`node tests/preview_ui.cjs`, `node tests/tuner_ui.cjs`는 두 페이지의 DOM 로직만 확인합니다(브라우저 렌더링 검사가 아닙니다).
 실제 `build/`가 있으면 HarfBuzz로 원본/결과 ASCII shaping과 **전체 완성형 NFC/NFD**의 동일한 glyph/2-cell 폭을 추가 검사합니다.
 `hb-view`가 설치돼 있으면 FreeType 힌팅 렌더링도 원본과 픽셀 단위로 비교합니다. HarfBuzz는 개발 검증용이며 빌드 의존성은 아닙니다.
 실행 증거와 환경상 제한은 [docs/verification.md](docs/verification.md)에 기록합니다.
