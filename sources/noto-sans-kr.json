@@ -1,0 +1,41 @@
+{
+  "id": "noto-sans-kr",
+  "name": "Noto Sans KR",
+  "family": "Agave Korean Noto",
+  "version": "google/fonts b38c5c93",
+  "homepage": "https://github.com/google/fonts/tree/main/ofl/notosanskr",
+  "fonts": {
+    "regular": {
+      "url": "https://raw.githubusercontent.com/google/fonts/b38c5c93af322c45f633e17ac440ec1e6c94d489/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf",
+      "axes": {
+        "wght": 400
+      },
+      "sha256": "194018e6b2b293a7964f037b25c0249ce1418bc9ab3c971060a03aa57861e252"
+    },
+    "bold": {
+      "url": "https://raw.githubusercontent.com/google/fonts/b38c5c93af322c45f633e17ac440ec1e6c94d489/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf",
+      "axes": {
+        "wght": 700
+      },
+      "sha256": "194018e6b2b293a7964f037b25c0249ce1418bc9ab3c971060a03aa57861e252"
+    }
+  },
+  "transform": {
+    "scale": 0.85,
+    "x_offset": 0,
+    "y_offset": -60
+  },
+  "license": {
+    "id": "OFL-1.1",
+    "redistribute": true,
+    "reserved_names": [
+      "Source"
+    ],
+    "files": [
+      {
+        "url": "https://raw.githubusercontent.com/google/fonts/b38c5c93af322c45f633e17ac440ec1e6c94d489/ofl/notosanskr/OFL.txt",
+        "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9"
+      }
+    ]
+  }
+}

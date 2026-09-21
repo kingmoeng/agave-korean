@@ -1,0 +1,35 @@
+{
+  "id": "source-han-sans-kr",
+  "name": "Source Han Sans KR",
+  "family": "Agave Korean Han",
+  "version": "2.005 / a4f7cf94",
+  "homepage": "https://github.com/adobe-fonts/source-han-sans",
+  "fonts": {
+    "regular": {
+      "url": "https://raw.githubusercontent.com/adobe-fonts/source-han-sans/a4f7cf94edfb9d7ffbdfc4841de276358bd7e0f2/SubsetOTF/KR/SourceHanSansKR-Regular.otf",
+      "sha256": "d8299926a5284f7461b46fa0617cc05d4f1fce8f034ffff78084225ce8b38071"
+    },
+    "bold": {
+      "url": "https://raw.githubusercontent.com/adobe-fonts/source-han-sans/a4f7cf94edfb9d7ffbdfc4841de276358bd7e0f2/SubsetOTF/KR/SourceHanSansKR-Bold.otf",
+      "sha256": "f678def86be3d973e85fb0e34513b93b9ec7d6a478380d93fe79d43d1ad9f797"
+    }
+  },
+  "transform": {
+    "scale": 0.85,
+    "x_offset": 0,
+    "y_offset": -60
+  },
+  "license": {
+    "id": "OFL-1.1",
+    "redistribute": true,
+    "reserved_names": [
+      "Source"
+    ],
+    "files": [
+      {
+        "url": "https://raw.githubusercontent.com/adobe-fonts/source-han-sans/a4f7cf94edfb9d7ffbdfc4841de276358bd7e0f2/LICENSE.txt",
+        "sha256": "fcac737e761ec63dbfbdce11030a1780161920d80315edba9c8beff1c2bac5a2"
+      }
+    ]
+  }
+}

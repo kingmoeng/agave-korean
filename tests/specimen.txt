@@ -1,0 +1,12 @@
+function 안녕하세요(name) {
+    console.log("반갑습니다, " + name);
+}
+0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ
+abcdefghijklmnopqrstuvwxyz () [] {} <> != === =>
+한글과 English가 섞여 있는 코드입니다.
+가나다라마바사 아자차카타파하
+HH xx gg pq | 한글 가나다 | 00 () [] {}
+ㄱㄴㄷ ㅏㅑㅓㅕ | 가각간갇갈감갑갓강 힣
+AABBCCDDEEFFGGHHIIJJ
+가나다라마바사아자차
+AA한BB글CC한DD글EE

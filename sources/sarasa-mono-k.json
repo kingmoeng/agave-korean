@@ -1,0 +1,47 @@
+{
+  "id": "sarasa-mono-k",
+  "name": "Sarasa Mono K",
+  "family": "Agave Korean",
+  "version": "1.0.41",
+  "homepage": "https://github.com/be5invis/Sarasa-Gothic",
+  "fonts": {
+    "regular": {
+      "github": {
+        "repo": "be5invis/Sarasa-Gothic",
+        "tag": "v1.0.41",
+        "asset": "SarasaMonoK-TTF-Unhinted-1.0.41.7z"
+      },
+      "sha256": "13803f1209ceb8aa55dee60d7b28975fd05b6fdf815411320db8f4ecaa27ec61",
+      "archive": "7z",
+      "member": "SarasaMonoK-Regular.ttf"
+    },
+    "bold": {
+      "github": {
+        "repo": "be5invis/Sarasa-Gothic",
+        "tag": "v1.0.41",
+        "asset": "SarasaMonoK-TTF-Unhinted-1.0.41.7z"
+      },
+      "sha256": "13803f1209ceb8aa55dee60d7b28975fd05b6fdf815411320db8f4ecaa27ec61",
+      "archive": "7z",
+      "member": "SarasaMonoK-Bold.ttf"
+    }
+  },
+  "transform": {
+    "scale": 0.85,
+    "x_offset": 0,
+    "y_offset": -60
+  },
+  "license": {
+    "id": "OFL-1.1",
+    "redistribute": true,
+    "reserved_names": [
+      "Source"
+    ],
+    "files": [
+      {
+        "url": "https://raw.githubusercontent.com/be5invis/Sarasa-Gothic/v1.0.41/LICENSE",
+        "sha256": "32c932e0dbae4f6e6386964bbc2d04178707665a05ca65cf636241af13d50a53"
+      }
+    ]
+  }
+}

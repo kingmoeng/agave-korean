@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agave + Korean · Font comparison</title>
+<style>
+/* FONT_FACES */
+:root { color-scheme: light dark; --bg: #f5f5f1; --fg: #222b25; --card: #fff; --line: #d8dfd9; --accent: #326a47; --size: 16px; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.6 system-ui, sans-serif; }
+header, main, footer { max-width: 1500px; margin: auto; padding: 24px; }
+header { padding-bottom: 12px; }
+h1 { margin: 0; font-size: 30px; font-weight: 650; letter-spacing: -.8px; }
+h2 { font-size: 19px; margin: 0; }
+p { margin: 8px 0; }
+.eyebrow { color: var(--accent); font-size: 11px; letter-spacing: 2px; font-weight: 700; }
+.controls { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin: 20px 0 10px; }
+select, button, input { font: inherit; }
+select, button { padding: 5px 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--card); color: inherit; }
+#filters { display: flex; gap: 16px; flex-wrap: wrap; }
+main { padding-top: 8px; }
+#cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%, 580px),1fr)); gap: 20px; }
+article { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 22px; min-width: 0; }
+.meta { color: var(--accent); font-size: 12px; }
+.status { font-size: 12px; min-height: 22px; }
+.status.error { color: #b24b38; }
+.specimen { overflow-x: auto; padding: 8px 0; }
+.font { font-family: var(--family), monospace; font-size: var(--size); font-synthesis: none; font-kerning: none; font-variant-ligatures: none; line-height: 1.8; letter-spacing: 0; }
+pre { margin: 0; tab-size: 4; font-family: inherit; }
+.weight-label { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); font: 11px system-ui; text-transform: uppercase; letter-spacing: 1px; }
+.baseline { position: relative; white-space: nowrap; }
+.baseline::after { content: ''; display: inline-block; width: 0; height: 0; vertical-align: baseline; }
+.guided .baseline { text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: #c4795590; text-underline-offset: 0; }
+.ruler { display: inline-block; background: repeating-linear-gradient(to right, transparent 0, transparent calc(2ch - 1px), #598c7755 calc(2ch - 1px), #598c7755 2ch); border-left: 1px solid #598c7755; }
+.ruler span { display: block; white-space: pre; }
+.measure { font: 11px/1.6 system-ui; color: var(--accent); }
+.custom { display: block; width: 100%; margin-top: 12px; padding: 10px; min-height: 75px; resize: vertical; background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; font: inherit; }
+a { color: var(--accent); }
+.hidden { display: none; }
+footer { font-size: 12px; opacity: .8; }
+@media (prefers-color-scheme: dark) { :root { --bg: #171d1a; --fg: #e1e8df; --card: #202923; --line: #38453d; --accent: #9bc9a9; } }
+</style>
+<header>
+  <div class="eyebrow">PERSONAL FONT WORKBENCH</div>
+  <h1>Agave + Korean</h1>
+  <p>Agave의 영문은 그대로. 같은 문장으로 한글 크기, 굵기, baseline을 비교하세요.</p>
+  <div class="controls">
+    <label>크기 <select id="size"><option>12</option><option>14</option><option selected>16</option><option>18</option><option>24</option><option>32</option></select> px</label>
+    <label>굵기 <select id="weight"><option value="both">Regular + Bold</option><option value="regular">Regular</option><option value="bold">Bold</option></select></label>
+    <label><input id="guides" type="checkbox" checked> 기준선</label>
+    <button id="reload">재빌드 후 새로고침</button>
+  </div>
+  <div id="filters"></div>
+  <label for="custom">공통 비교 문장</label>
+  <textarea class="custom" id="custom">한글과 English가 섞여 있는 코드입니다. HgAx 가각한힣 0123456789</textarea>
+</header>
+<main class="guided"><div id="cards"></div><p id="empty" hidden>아직 빌드된 폰트가 없습니다. ./build.sh 실행 후 이 페이지를 다시 여세요.</p></main>
+<footer>
+  글꼴이 로드되어야 비교가 유효합니다. 각 카드의 로딩 상태와 실측 폭을 확인하세요.<br>
+  2-cell 눈금은 ASCII 두 글자 간격입니다. 파란 눈금에 한글 한 글자씩 맞아야 합니다.<br>
+  현대 한글 완성형·호환 자모를 포함합니다. 옛한글·한자·기타 문자는 시스템 fallback이 나올 수 있습니다.<br>
+  로컬 파일 접근을 막는 브라우저에서는 프로젝트 루트에서 <code>python3 -m http.server 8000 --bind 127.0.0.1</code>을 실행하고
+  <code>http://localhost:8000/preview/</code>를 여세요.
+</footer>
+<script>
+const sources = /* FONT_DATA */[];
+const sample = `function 안녕하세요(name) {
+    console.log("반갑습니다, " + name);
+}
+
+0123456789
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+abcdefghijklmnopqrstuvwxyz
+() [] {} <> != === =>
+
+한글과 English가 섞여 있는 코드입니다.
+가나다라마바사 아자차카타파하`;
+const cards = document.querySelector('#cards');
+const canvas = document.createElement('canvas');
+const context = canvas.getContext('2d');
+function element(tag, cls, text) {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+function measure(section, family, weight) {
+  const px = document.querySelector('#size').value;
+  context.font = `${weight} ${px}px "${family}"`;
+  const latin = context.measureText('MM').width;
+  const korean = context.measureText('한').width;
+  section.querySelector('.measure').textContent = `실측 MM ${latin.toFixed(3)}px · 한 ${korean.toFixed(3)}px · 차이 ${Math.abs(latin-korean).toFixed(3)}px`;
+  section.dataset.widthMatch = String(Math.abs(latin-korean) < .01);
+}
+for (const source of sources) {
+  const article = element('article');
+  article.style.setProperty('--family', `"${source.css_family}"`);
+  article.dataset.source = source.id;
+  article.append(element('h2', '', `Agave + ${source.name}`));
+  const t = source.transform;
+  article.append(element('div', 'meta', `scale ${t.scale} · x ${t.x_offset} · y ${t.y_offset} · ${source.family}`));
+  if (!source.redistribute) article.append(element('p', 'status error', '개인 로컬 실험 · 라이선스 미확인 · 이 폰트와 preview를 배포하지 마세요.'));
+  for (const [weight, numeric] of [['regular',400],['bold',700]]) {
+    const section = element('section');
+    section.dataset.weight = weight;
+    section.append(element('div', 'weight-label', weight));
+    const status = element('div','status','폰트 로딩 중…');
+    section.append(status);
+    const specimen = element('div','specimen font');
+    specimen.style.fontWeight = numeric;
+    specimen.append(element('pre','',sample));
+    specimen.append(element('div','baseline','HH xx gg pq | 한글 가나다 | 00 () [] {}'));
+    specimen.append(element('div','baseline','ㄱㄴㄷ ㅏㅑㅓㅕ | 가각간갇갈감갑갓강 힣'));
+    const ruler = element('div','ruler');
+    for (const line of ['AABBCCDDEEFFGGHHIIJJ','가나다라마바사아자차','AA한BB글CC한DD글EE','00가00나00다00라00']) ruler.append(element('span','',line));
+    specimen.append(ruler,element('pre','custom-sample',document.querySelector('#custom').value));
+    section.append(specimen,element('div','measure',''));
+    const link = element('a','',`${weight} TTF`);
+    link.href = source[weight];
+    section.append(link);
+    article.append(section);
+    document.fonts.load(`${numeric} 16px "${source.css_family}"`, 'Ag한글').then(fonts => {
+      if (!fonts.length) throw new Error('FontFace not available');
+      section.dataset.loaded = 'true';
+      status.textContent = '로드 완료 · 실제 빌드된 TTF';
+      measure(section,source.css_family,numeric);
+    }).catch(() => {
+      section.dataset.loaded = 'false';
+      status.classList.add('error');
+      status.textContent = '폰트 로드 실패 — 아래 로컬 서버 안내를 확인하세요. 현재 fallback 표시는 비교에 사용할 수 없습니다.';
+    });
+  }
+  cards.append(article);
+  const filter = element('label');
+  const check = document.createElement('input'); check.type = 'checkbox'; check.checked = true;
+  check.addEventListener('change', () => article.classList.toggle('hidden',!check.checked));
+  filter.append(check,document.createTextNode(` ${source.name}`));
+  document.querySelector('#filters').append(filter);
+}
+document.querySelector('#empty').hidden = sources.length > 0;
+document.querySelector('#size').addEventListener('change', event => {
+  document.documentElement.style.setProperty('--size',`${event.target.value}px`);
+  for (const [i,article] of [...cards.children].entries()) for (const section of article.querySelectorAll('section')) {
+    if (section.dataset.loaded === 'true') measure(section,sources[i].css_family,section.dataset.weight === 'bold' ? 700 : 400);
+  }
+});
+document.querySelector('#weight').addEventListener('change',event => {
+  for (const section of cards.querySelectorAll('section')) section.hidden = event.target.value !== 'both' && section.dataset.weight !== event.target.value;
+});
+document.querySelector('#guides').addEventListener('change',event => document.querySelector('main').classList.toggle('guided',event.target.checked));
+document.querySelector('#custom').addEventListener('input',event => {
+  for (const sample of cards.querySelectorAll('.custom-sample')) sample.textContent = event.target.value;
+});
+document.querySelector('#reload').addEventListener('click',() => location.reload());
+</script>
+</html>

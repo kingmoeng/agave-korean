@@ -1,0 +1,47 @@
+{
+  "id": "d2coding",
+  "name": "D2Coding",
+  "family": "Agave Korean D2",
+  "version": "1.3.2",
+  "homepage": "https://github.com/naver/d2-coding-font",
+  "fonts": {
+    "regular": {
+      "github": {
+        "repo": "naver/d2-coding-font",
+        "tag": "VER1.3.2",
+        "asset": "D2Coding-Ver1.3.2-20180524.zip"
+      },
+      "archive": "zip",
+      "member": "D2Coding/D2Coding-Ver1.3.2-20180524.ttf",
+      "sha256": "0f1c9192eac7d56329dddc620f9f1666b707e9c8ed38fe1f988d0ae3e30b24e6"
+    },
+    "bold": {
+      "github": {
+        "repo": "naver/d2-coding-font",
+        "tag": "VER1.3.2",
+        "asset": "D2Coding-Ver1.3.2-20180524.zip"
+      },
+      "archive": "zip",
+      "member": "D2Coding/D2CodingBold-Ver1.3.2-20180524.ttf",
+      "sha256": "0f1c9192eac7d56329dddc620f9f1666b707e9c8ed38fe1f988d0ae3e30b24e6"
+    }
+  },
+  "transform": {
+    "scale": 0.85,
+    "x_offset": 0,
+    "y_offset": -60
+  },
+  "license": {
+    "id": "OFL-1.1",
+    "redistribute": true,
+    "reserved_names": [
+      "D2Coding"
+    ],
+    "files": [
+      {
+        "url": "https://raw.githubusercontent.com/naver/d2-coding-font/9d6f0559691ebe670a23fbf7b72a8dc42362f1fb/OFL.txt",
+        "sha256": "1807e8dec4d65f474cbf9be39f5e2254ecb81702babc320749e272ea66ffcc69"
+      }
+    ]
+  }
+}

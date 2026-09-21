@@ -1,0 +1,36 @@
+{
+  "id": "agave",
+  "name": "Agave",
+  "family": "Agave Korean",
+  "version": "39",
+  "homepage": "https://github.com/blobject/agave",
+  "fonts": {
+    "regular": {
+      "github": {
+        "repo": "blobject/agave",
+        "tag": "39",
+        "asset": "Agave-Regular.ttf"
+      },
+      "sha256": "b493b130fc248f9b581482f14cc5dd59fa47b10c57a551e483447961e4d2e2f7"
+    },
+    "bold": {
+      "github": {
+        "repo": "blobject/agave",
+        "tag": "39",
+        "asset": "Agave-Bold.ttf"
+      },
+      "sha256": "204c93f24b54f36d1e2301eed64d3af76e7f4235b515aa128d8b75a17619829e"
+    }
+  },
+  "license": {
+    "id": "OFL-1.1",
+    "redistribute": true,
+    "reserved_names": [],
+    "files": [
+      {
+        "url": "https://raw.githubusercontent.com/blobject/agave/39/LICENSE",
+        "sha256": "9814d6629c8a81da02e1dbd4cd509abe16a32e435bd7693e8b951d7127bb85b7"
+      }
+    ]
+  }
+}

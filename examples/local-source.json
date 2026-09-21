@@ -1,0 +1,17 @@
+{
+  "id": "my-korean",
+  "name": "My local Korean font",
+  "family": "Agave Korean Local",
+  "version": "local",
+  "fonts": {
+    "regular": {"local": "my-korean/Regular.ttf"},
+    "bold": {"local": "my-korean/Bold.ttf"}
+  },
+  "transform": {"scale": 0.85, "x_offset": 0, "y_offset": -60},
+  "license": {
+    "id": "LicenseRef-Local-Unverified",
+    "redistribute": false,
+    "reserved_names": [],
+    "files": []
+  }
+}
